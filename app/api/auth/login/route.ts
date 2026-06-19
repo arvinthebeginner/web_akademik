@@ -1,10 +1,8 @@
 import { comparePassword } from '@/lib/auth';
 import { errorResponse, successResponse } from '@/lib/utils';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// Use relative paths since API routes are in the same Next.js app
+const API_BASE_URL = '';
 
 export async function apiCall<T>(
   endpoint: string,

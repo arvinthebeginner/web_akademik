@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       if (response.success) {
         // Redirect to dashboard
-        router.push('/dashboard');
+        router.push('/');
       } else {
         setError(response.error || 'Login failed');
       }

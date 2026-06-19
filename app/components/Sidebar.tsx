@@ -14,14 +14,14 @@ interface NavItem {
 }
 
 const navigationItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', roles: ['ADMIN', 'KEPALA_SEKOLAH', 'GURU', 'SISWA', 'ORANG_TUA'] },
-  { label: 'Siswa', href: '/dashboard/siswa', roles: ['ADMIN', 'GURU', 'KEPALA_SEKOLAH'] },
-  { label: 'Guru', href: '/dashboard/guru', roles: ['ADMIN', 'KEPALA_SEKOLAH'] },
-  { label: 'Kelas', href: '/dashboard/kelas', roles: ['ADMIN', 'GURU', 'KEPALA_SEKOLAH'] },
-  { label: 'Nilai', href: '/dashboard/nilai', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
-  { label: 'Absensi', href: '/dashboard/absensi', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
-  { label: 'Pesan', href: '/dashboard/pesan', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
-  { label: 'Laporan', href: '/dashboard/laporan', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
+  { label: 'Dashboard', href: '/', roles: ['ADMIN', 'KEPALA_SEKOLAH', 'GURU', 'SISWA', 'ORANG_TUA'] },
+  { label: 'Siswa', href: '/siswa', roles: ['ADMIN', 'GURU', 'KEPALA_SEKOLAH'] },
+  { label: 'Guru', href: '/guru', roles: ['ADMIN', 'KEPALA_SEKOLAH'] },
+  { label: 'Kelas', href: '/kelas', roles: ['ADMIN', 'GURU', 'KEPALA_SEKOLAH'] },
+  { label: 'Nilai', href: '/nilai', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
+  { label: 'Absensi', href: '/absensi', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
+  { label: 'Pesan', href: '/pesan', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
+  { label: 'Laporan', href: '/laporan', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'] },
 ];
 
 interface SidebarProps {

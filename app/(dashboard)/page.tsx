@@ -7,7 +7,18 @@ interface DashboardStats {
   totalStudents?: number;
   totalTeachers?: number;
   totalClasses?: number;
+  activeSemester?: string;
   averageGrade?: number;
+  attendanceToday?: string;
+  classesTaught?: number;
+  pendingGrading?: number;
+  averageGradeClass?: number;
+  gpa?: string;
+  attendanceRate?: string;
+  pendingAssignments?: number;
+  childGrades?: string;
+  teacherMessages?: number;
+  sppStatus?: string;
 }
 
 export default function DashboardPage() {
@@ -21,9 +32,16 @@ export default function DashboardPage() {
         if (response.ok) {
           const data = await response.json();
           setUser(data.data);
+
+          // Fetch statistics
+          const statsResponse = await fetch('/api/reports');
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            setStats(statsData.data);
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch user:', error);
+        console.error('Failed to fetch user or stats:', error);
       }
     };
 
@@ -35,15 +53,15 @@ export default function DashboardPage() {
 
     switch (user.role) {
       case 'ADMIN':
-        return <AdminDashboard />;
+        return <AdminDashboard stats={stats} />;
       case 'KEPALA_SEKOLAH':
-        return <KepalaSekolahDashboard />;
+        return <KepalaSekolahDashboard stats={stats} />;
       case 'GURU':
-        return <GuruDashboard />;
+        return <GuruDashboard stats={stats} />;
       case 'SISWA':
-        return <SiswaDashboard />;
+        return <SiswaDashboard stats={stats} />;
       case 'ORANG_TUA':
-        return <OrangTuaDashboard />;
+        return <OrangTuaDashboard stats={stats} />;
       default:
         return null;
     }
@@ -60,30 +78,30 @@ export default function DashboardPage() {
   );
 }
 
-function AdminDashboard() {
+function AdminDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         title="Total Siswa"
-        value="150"
+        value={stats.totalStudents ?? '...'}
         icon="👥"
         color="bg-blue-500"
       />
       <StatCard
         title="Total Guru"
-        value="25"
+        value={stats.totalTeachers ?? '...'}
         icon="👨‍🏫"
         color="bg-green-500"
       />
       <StatCard
         title="Total Kelas"
-        value="12"
+        value={stats.totalClasses ?? '...'}
         icon="🏫"
         color="bg-purple-500"
       />
       <StatCard
         title="Semester Aktif"
-        value="2024/2025 - Sem 1"
+        value={stats.activeSemester ?? '...'}
         icon="📅"
         color="bg-orange-500"
       />
@@ -91,30 +109,30 @@ function AdminDashboard() {
   );
 }
 
-function KepalaSekolahDashboard() {
+function KepalaSekolahDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         title="Total Siswa"
-        value="150"
+        value={stats.totalStudents ?? '...'}
         icon="👥"
         color="bg-blue-500"
       />
       <StatCard
         title="Total Guru"
-        value="25"
+        value={stats.totalTeachers ?? '...'}
         icon="👨‍🏫"
         color="bg-green-500"
       />
       <StatCard
         title="Rata-rata Nilai"
-        value="78.5"
+        value={stats.averageGrade ?? '...'}
         icon="📊"
         color="bg-purple-500"
       />
       <StatCard
         title="Absensi Hari Ini"
-        value="95%"
+        value={stats.attendanceToday ?? '...'}
         icon="✅"
         color="bg-orange-500"
       />
@@ -122,30 +140,30 @@ function KepalaSekolahDashboard() {
   );
 }
 
-function GuruDashboard() {
+function GuruDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         title="Kelas Diajar"
-        value="5"
+        value={stats.classesTaught ?? '...'}
         icon="📚"
         color="bg-blue-500"
       />
       <StatCard
         title="Total Siswa"
-        value="125"
+        value={stats.totalStudents ?? '...'}
         icon="👥"
         color="bg-green-500"
       />
       <StatCard
         title="Tugas Belum Dinilai"
-        value="8"
+        value={stats.pendingGrading ?? '...'}
         icon="📝"
         color="bg-red-500"
       />
       <StatCard
         title="Rata-rata Nilai Kelas"
-        value="79.3"
+        value={stats.averageGradeClass ?? '...'}
         icon="📊"
         color="bg-purple-500"
       />
@@ -153,30 +171,30 @@ function GuruDashboard() {
   );
 }
 
-function SiswaDashboard() {
+function SiswaDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         title="GPA"
-        value="3.75"
+        value={stats.gpa ?? '...'}
         icon="⭐"
         color="bg-blue-500"
       />
       <StatCard
         title="Kehadiran"
-        value="96%"
+        value={stats.attendanceRate ?? '...'}
         icon="✅"
         color="bg-green-500"
       />
       <StatCard
         title="Tugas Tertunda"
-        value="2"
+        value={stats.pendingAssignments ?? '...'}
         icon="📝"
         color="bg-orange-500"
       />
       <StatCard
         title="Rata-rata Nilai"
-        value="85"
+        value={stats.averageGrade ?? '...'}
         icon="📊"
         color="bg-purple-500"
       />
@@ -184,30 +202,30 @@ function SiswaDashboard() {
   );
 }
 
-function OrangTuaDashboard() {
+function OrangTuaDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         title="Nilai Anak"
-        value="Baik"
+        value={stats.childGrades ?? '...'}
         icon="📊"
         color="bg-blue-500"
       />
       <StatCard
         title="Kehadiran"
-        value="95%"
+        value={stats.attendanceRate ?? '...'}
         icon="✅"
         color="bg-green-500"
       />
       <StatCard
         title="Pesan Guru"
-        value="3"
+        value={stats.teacherMessages ?? '...'}
         icon="💬"
         color="bg-orange-500"
       />
       <StatCard
         title="Status SPP"
-        value="Lunas"
+        value={stats.sppStatus ?? '...'}
         icon="💰"
         color="bg-purple-500"
       />
