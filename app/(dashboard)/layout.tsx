@@ -44,13 +44,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="flex">
-        <Sidebar userRole={user.role as UserRole} />
-        <div className="flex-1 md:ml-0">
-          <Header user={user} />
-          <main className="p-4 md:p-8">{children}</main>
-        </div>
+    <div className="flex min-h-screen bg-surface-background">
+      <Sidebar userRole={user.role as UserRole} />
+      <div className="flex-1 ml-sidebar-width min-h-screen flex flex-col">
+        <Header user={user} />
+        <main className="flex-1 mt-header-height p-container-padding pt-8">
+          {children}
+        </main>
       </div>
     </div>
   );

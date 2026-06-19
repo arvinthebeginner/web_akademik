@@ -4,7 +4,7 @@ import { errorResponse, successResponse } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/students - Get list of students
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const students = await prisma.student.findMany({
       include: {

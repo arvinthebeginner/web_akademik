@@ -74,7 +74,7 @@ export async function PUT(
     // Update User & Teacher details in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update User account
-      const user = await tx.user.update({
+      const _user = await tx.user.update({
         where: { id: teacher.userId },
         data: {
           name: name || undefined,

@@ -1,17 +1,14 @@
 'use client';
 
-import { Button } from '@/components';
 import React, { useEffect, useState } from 'react';
-import { FiDownload, FiPrinter, FiFileText, FiAward } from 'react-icons/fi';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 interface StudentOption {
   id: string;
   name: string;
   nisn: string;
-  class?: {
-    name: string;
-  };
+  class?: { name: string };
 }
 
 interface GradeRecord {
@@ -24,18 +21,60 @@ interface GradeRecord {
   notes?: string;
 }
 
+type ActiveModule = null | 'rapor' | 'statistik' | 'absensi' | 'export';
+
+const modules = [
+  {
+    id: 'rapor' as const,
+    icon: 'description',
+    title: 'Rapor Siswa',
+    desc: 'Kelola dan cetak rapor akademik siswa per semester. Mendukung format PDF massal.',
+    btnLabel: 'Buka Modul',
+    btnPrimary: true,
+    accentBg: 'bg-primary-fixed',
+    iconColor: 'text-primary',
+  },
+  {
+    id: 'statistik' as const,
+    icon: 'monitoring',
+    title: 'Statistik Akademik',
+    desc: 'Analisis performa nilai, tren ketuntasan belajar, dan perbandingan antar kelas.',
+    btnLabel: 'Lihat Analitik',
+    btnPrimary: false,
+    accentBg: 'bg-tertiary-fixed',
+    iconColor: 'text-on-primary-fixed-variant',
+  },
+  {
+    id: 'absensi' as const,
+    icon: 'fact_check',
+    title: 'Laporan Absensi',
+    desc: 'Rekap kehadiran siswa terintegrasi. Filter berdasarkan periode, kelas, atau individu.',
+    btnLabel: 'Buka Laporan',
+    btnPrimary: false,
+    accentBg: 'bg-secondary-fixed',
+    iconColor: 'text-secondary',
+  },
+  {
+    id: 'export' as const,
+    icon: 'data_table',
+    title: 'Export Data',
+    desc: 'Unduh raw data akademik dalam format Excel (XLSX) atau CSV untuk kebutuhan eksternal.',
+    btnLabel: 'Pusat Unduhan',
+    btnPrimary: false,
+    accentBg: 'bg-surface-variant',
+    iconColor: 'text-on-surface-variant',
+  },
+];
+
 export default function LaporanPage() {
-  const [selectedRapor, setSelectedRapor] = useState('rapor');
+  const [activeModule, setActiveModule] = useState<ActiveModule>(null);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('2025/2026-1');
-  const [loading, setLoading] = useState(true);
-
-  // Preview Data
+  const [loading, setLoading] = useState(false);
   const [studentGrades, setStudentGrades] = useState<GradeRecord[]>([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
-  // Load students
   useEffect(() => {
     const loadStudents = async () => {
       try {
@@ -44,9 +83,7 @@ export default function LaporanPage() {
         if (response.ok) {
           const data = await response.json();
           setStudents(data.data);
-          if (data.data.length > 0) {
-            setSelectedStudentId(data.data[0].id);
-          }
+          if (data.data.length > 0) setSelectedStudentId(data.data[0].id);
         }
       } catch (error) {
         toast.error('Gagal mengambil data siswa');
@@ -58,14 +95,12 @@ export default function LaporanPage() {
     loadStudents();
   }, []);
 
-  // Fetch grades for selected student when selectedStudentId changes
   useEffect(() => {
-    if (!selectedStudentId) {
-      setStudentGrades([]);
-      return;
-    }
-
     const fetchStudentGrades = async () => {
+      if (!selectedStudentId) {
+        setStudentGrades([]);
+        return;
+      }
       try {
         setLoadingPreview(true);
         const response = await fetch('/api/grades');
@@ -73,10 +108,7 @@ export default function LaporanPage() {
           const data = await response.json();
           const student = students.find((s) => s.id === selectedStudentId);
           if (student) {
-            // Filter grades belonging to this student
-            const filtered = data.data.filter(
-              (g: any) => g.studentName === student.name
-            );
+            const filtered = data.data.filter((g: { studentName: string }) => g.studentName === student.name);
             setStudentGrades(filtered);
           }
         }
@@ -86,181 +118,338 @@ export default function LaporanPage() {
         setLoadingPreview(false);
       }
     };
-
     fetchStudentGrades();
   }, [selectedStudentId, students]);
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
 
   const handlePrint = () => {
-    if (!selectedStudentId) {
-      toast.error('Harap pilih siswa terlebih dahulu');
-      return;
-    }
+    if (!selectedStudentId) { toast.error('Harap pilih siswa terlebih dahulu'); return; }
     window.print();
   };
 
   const handleDownload = () => {
-    if (!selectedStudentId) {
-      toast.error('Harap pilih siswa terlebih dahulu');
-      return;
-    }
+    if (!selectedStudentId) { toast.error('Harap pilih siswa terlebih dahulu'); return; }
     toast.success(`Mengunduh laporan rapor untuk ${selectedStudent?.name}...`);
   };
 
+  // Module cards grid (default view)
+  if (!activeModule) {
+    return (
+      <div>
+        {/* Breadcrumbs & Page Header */}
+        <div className="mb-stack-lg">
+          <nav aria-label="Breadcrumb" className="flex text-on-surface-variant text-[12px] leading-[18px] mb-2">
+            <ol className="inline-flex items-center space-x-1 md:space-x-2">
+              <li className="inline-flex items-center">
+                <Link className="hover:text-primary transition-colors" href="/">Dashboard</Link>
+              </li>
+              <li>
+                <div className="flex items-center">
+                  <span className="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
+                  <span className="text-primary font-medium">Laporan</span>
+                </div>
+              </li>
+            </ol>
+          </nav>
+          <h2 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background">Laporan Akademik</h2>
+          <p className="text-[16px] leading-[24px] text-on-surface-variant mt-1 max-w-2xl">
+            Pusat kontrol untuk menghasilkan, melihat, dan mengunduh seluruh dokumen pelaporan akademik institusi.
+          </p>
+        </div>
+
+        {/* Reports Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-gutter">
+          {modules.map((mod) => (
+            <div key={mod.id} className="bg-surface-container-lowest rounded-xl border border-surface-border p-stack-lg flex flex-col hover:shadow-md transition-shadow duration-300 relative overflow-hidden group">
+              {/* Decorative accent */}
+              <div className={`absolute top-0 right-0 w-24 h-24 ${mod.accentBg} opacity-20 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110`}></div>
+              {/* Icon */}
+              <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center mb-stack-md">
+                <span className={`material-symbols-outlined icon-fill text-[28px] ${mod.iconColor}`}>{mod.icon}</span>
+              </div>
+              <h3 className="text-[20px] font-semibold leading-[28px] text-on-background mb-2">{mod.title}</h3>
+              <p className="text-[14px] leading-[20px] text-on-surface-variant flex-grow mb-stack-lg">{mod.desc}</p>
+              <button
+                onClick={() => setActiveModule(mod.id)}
+                className={`w-full py-2 px-4 rounded-lg text-[14px] leading-[20px] font-semibold transition-colors flex items-center justify-center gap-2 ${
+                  mod.btnPrimary
+                    ? 'bg-primary text-on-primary hover:bg-on-primary-fixed-variant'
+                    : 'border border-primary text-primary hover:bg-surface-container-low'
+                }`}
+              >
+                {mod.btnLabel}
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Module detail view (Rapor, Statistik, etc.)
   return (
-    <div className="text-gray-700">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8 print:hidden">Laporan & Rapor</h1>
-
-      {/* Filter Section */}
-      <div className="bg-white rounded-xl shadow p-6 mb-8 border border-gray-100 print:hidden transition-all duration-300 hover:shadow-md">
-        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <FiFileText className="text-blue-600" /> Filter Laporan
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Jenis Laporan</label>
-            <select
-              value={selectedRapor}
-              onChange={(e) => setSelectedRapor(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="rapor">Rapor Semester</option>
-              <option value="transkrip">Transkrip Nilai Lengkap</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Siswa</label>
-            <select
-              value={selectedStudentId}
-              onChange={(e) => setSelectedStudentId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {loading ? (
-                <option>Memuat siswa...</option>
-              ) : students.length === 0 ? (
-                <option value="">Tidak ada siswa</option>
-              ) : (
-                students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.class?.name || 'Tanpa Kelas'})
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Tahun Ajaran / Semester</label>
-            <select
-              value={selectedSemester}
-              onChange={(e) => setSelectedSemester(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="2025/2026-1">2025/2026 - Semester 1 (Ganjil)</option>
-              <option value="2025/2026-2">2025/2026 - Semester 2 (Genap)</option>
-            </select>
-          </div>
+    <div className="text-on-surface">
+      {/* Back Button + Title */}
+      <div className="mb-gutter flex items-center gap-3">
+        <button
+          onClick={() => setActiveModule(null)}
+          className="p-2 rounded-lg hover:bg-surface-container-low text-on-surface-variant transition-colors"
+        >
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+        </button>
+        <div>
+          <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background">
+            {modules.find(m => m.id === activeModule)?.title}
+          </h1>
+          <p className="text-[12px] leading-[18px] text-on-surface-variant mt-0.5">
+            {modules.find(m => m.id === activeModule)?.desc}
+          </p>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      {selectedStudent && (
-        <div className="bg-white rounded-xl shadow p-6 flex gap-4 justify-end border border-gray-100 print:hidden mb-8 transition-all duration-300 hover:shadow-md">
-          <Button variant="secondary" size="md" onClick={handlePrint}>
-            <FiPrinter className="inline mr-2" /> Cetak Rapor
-          </Button>
-          <Button variant="primary" size="md" onClick={handleDownload}>
-            <FiDownload className="inline mr-2" /> Unduh PDF
-          </Button>
+      {activeModule === 'rapor' && (
+        <div className="flex flex-col gap-gutter max-w-[1200px] mx-auto w-full">
+          {/* Controls Section */}
+          <section className="bg-surface-container-lowest rounded-xl border border-surface-border p-6 shadow-sm print:hidden">
+            <h2 className="text-[20px] font-semibold leading-[28px] text-on-surface mb-6">Pilihan Dokumen Rapor</h2>
+            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-end">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                {/* Student Search */}
+                <div className="space-y-1.5">
+                  <label className="text-[12px] leading-[16px] font-semibold text-on-surface-variant">Pilih Siswa</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">person_search</span>
+                    <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-surface-border bg-surface focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-[14px] leading-[20px] text-on-surface transition-all appearance-none cursor-pointer">
+                      {loading ? (
+                        <option>Memuat siswa...</option>
+                      ) : students.length === 0 ? (
+                        <option value="">Tidak ada siswa</option>
+                      ) : (
+                        students.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.class?.name || 'Tanpa Kelas'})</option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                </div>
+                {/* Semester Select */}
+                <div className="space-y-1.5">
+                  <label className="text-[12px] leading-[16px] font-semibold text-on-surface-variant">Tahun Ajaran & Semester</label>
+                  <div className="relative">
+                    <select value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)}
+                      className="w-full pl-4 pr-10 py-2.5 rounded-lg border border-surface-border bg-surface focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-[14px] leading-[20px] text-on-surface transition-all appearance-none cursor-pointer">
+                      <option value="2025/2026-2">2025/2026 - Genap</option>
+                      <option value="2025/2026-1">2025/2026 - Ganjil</option>
+                      <option value="2024/2025-2">2024/2025 - Genap</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none">expand_more</span>
+                  </div>
+                </div>
+              </div>
+              {/* Actions */}
+              <div className="flex items-center gap-3 w-full lg:w-auto pt-4 lg:pt-0 border-t border-surface-border lg:border-t-0 mt-2 lg:mt-0">
+                <button onClick={handlePrint} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border border-primary text-primary text-[14px] leading-[20px] font-semibold hover:bg-surface-container-low transition-colors duration-200">
+                  <span className="material-symbols-outlined text-[20px]">print</span>
+                  Cetak
+                </button>
+                <button onClick={handleDownload} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary text-[14px] leading-[20px] font-semibold hover:bg-primary/90 shadow-sm transition-colors duration-200">
+                  <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                  Generate PDF
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Preview Area: A4 Paper Canvas */}
+          {selectedStudent ? (
+            <section className="bg-surface-border p-4 md:p-8 rounded-xl flex justify-center overflow-x-auto">
+              <div className="w-full max-w-[850px] min-w-[700px] bg-surface-container-lowest shadow-[0_4px_12px_rgba(0,0,0,0.05)] rounded-sm p-10 md:p-14 text-[14px] leading-[20px] text-on-surface">
+                {/* Document Header */}
+                <div className="flex items-center border-b-[3px] border-on-surface pb-6 mb-8 gap-6">
+                  <div className="w-24 h-24 bg-surface-container rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-[40px] text-primary">account_balance</span>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <h2 className="text-[24px] font-bold leading-[32px] tracking-tight">KEMENTERIAN PENDIDIKAN, KEBUDAYAAN,<br/>RISET, DAN TEKNOLOGI</h2>
+                    <h3 className="text-[20px] font-semibold leading-[28px] mt-1">SMA NEGERI 1 NUSANTARA</h3>
+                    <p className="text-[12px] leading-[18px] mt-1 text-on-surface-variant">Jl. Pendidikan No. 123, Kota Pelajar, Provinsi Ilmu Pengetahuan 45678</p>
+                    <p className="text-[12px] leading-[18px] text-on-surface-variant">Telp: (021) 555-0198 | Email: info@sman1nusantara.sch.id</p>
+                  </div>
+                  <div className="w-24 flex-shrink-0"></div>
+                </div>
+
+                {/* Report Title */}
+                <div className="text-center mb-8">
+                  <h4 className="text-[20px] font-semibold leading-[28px] font-bold underline mb-1">LAPORAN HASIL BELAJAR (RAPOR)</h4>
+                </div>
+
+                {/* Student Info Grid */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-8 text-[14px] leading-[20px]">
+                  <div className="flex">
+                    <span className="w-40 text-on-surface-variant">Nama Peserta Didik</span>
+                    <span className="mr-2">:</span>
+                    <span className="font-semibold">{selectedStudent.name}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-on-surface-variant">Kelas / Fase</span>
+                    <span className="mr-2">:</span>
+                    <span className="font-semibold">{selectedStudent.class?.name || 'Belum dimasukkan'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-40 text-on-surface-variant">NISN / NIS</span>
+                    <span className="mr-2">:</span>
+                    <span>{selectedStudent.nisn}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-on-surface-variant">Semester</span>
+                    <span className="mr-2">:</span>
+                    <span>{selectedSemester === '2025/2026-1' ? 'Ganjil' : 'Genap'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-40 text-on-surface-variant">Sekolah Asal</span>
+                    <span className="mr-2">:</span>
+                    <span>SMA Negeri 1 Nusantara</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-on-surface-variant">Tahun Ajaran</span>
+                    <span className="mr-2">:</span>
+                    <span>{selectedSemester.split('-')[0]}</span>
+                  </div>
+                </div>
+
+                {/* Grades Table */}
+                <div className="mb-8">
+                  <h5 className="text-[14px] leading-[20px] font-bold mb-3">A. Sikap & Pengetahuan</h5>
+                  {loadingPreview ? (
+                    <div className="flex justify-center items-center py-10">
+                      <div className="animate-spin rounded-full h-8 w-8 border-[3px] border-surface-border border-t-secondary"></div>
+                    </div>
+                  ) : studentGrades.length === 0 ? (
+                    <div className="bg-surface-background rounded-lg p-8 text-center text-on-surface-variant border border-dashed border-surface-border text-[14px]">
+                      Belum ada nilai yang direkam untuk siswa ini di semester terpilih.
+                    </div>
+                  ) : (
+                    <table className="w-full border-collapse border border-outline-variant text-[12px] leading-[18px]">
+                      <thead>
+                        <tr className="bg-surface-container-low text-center text-[12px] leading-[16px] font-semibold">
+                          <th className="border border-outline-variant py-3 px-2 w-12">No</th>
+                          <th className="border border-outline-variant py-3 px-4 text-left">Mata Pelajaran</th>
+                          <th className="border border-outline-variant py-3 px-2 w-20">Formatif</th>
+                          <th className="border border-outline-variant py-3 px-2 w-20">Sumatif</th>
+                          <th className="border border-outline-variant py-3 px-2 w-24">Nilai Akhir</th>
+                          <th className="border border-outline-variant py-3 px-2 w-24">Predikat</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-center text-[12px] leading-[18px]">
+                        {studentGrades.map((g, idx) => {
+                          const predikat = g.score >= 85 ? 'Sangat Baik' : g.score >= 70 ? 'Baik' : g.score >= 55 ? 'Cukup' : 'Kurang';
+                          return (
+                            <tr key={g.id} className="hover:bg-surface-background transition-colors">
+                              <td className="border border-outline-variant py-2 px-2">{idx + 1}</td>
+                              <td className="border border-outline-variant py-2 px-4 text-left font-medium">{g.subject}</td>
+                              <td className="border border-outline-variant py-2 px-2">{g.score}</td>
+                              <td className="border border-outline-variant py-2 px-2">{g.score}</td>
+                              <td className="border border-outline-variant py-2 px-2 font-bold">{g.score}</td>
+                              <td className="border border-outline-variant py-2 px-2 text-success">{predikat}</td>
+                            </tr>
+                          );
+                        })}
+                        {/* Average Row */}
+                        <tr className="bg-surface-container text-[12px] leading-[16px] font-semibold">
+                          <td className="border border-outline-variant py-3 px-4 text-right" colSpan={4}>Rata-rata Nilai Akhir</td>
+                          <td className="border border-outline-variant py-3 px-2 font-bold text-[16px] text-primary">
+                            {(studentGrades.reduce((s, g) => s + g.score, 0) / studentGrades.length).toFixed(2)}
+                          </td>
+                          <td className="border border-outline-variant py-3 px-2"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Bottom Section: Attendance & Signatures */}
+                <div className="grid grid-cols-2 gap-12 mt-10">
+                  {/* Attendance Summary */}
+                  <div>
+                    <h5 className="text-[14px] leading-[20px] font-bold mb-3">B. Ketidakhadiran</h5>
+                    <table className="w-full border-collapse border border-outline-variant text-[12px] leading-[18px]">
+                      <tbody>
+                        <tr>
+                          <td className="border border-outline-variant py-2 px-4 text-on-surface-variant">Hadir</td>
+                          <td className="border border-outline-variant py-2 px-4 text-center font-bold">114 Hari <span className="text-[11px] font-normal text-on-surface-variant">(95%)</span></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-outline-variant py-2 px-4 text-on-surface-variant">Sakit</td>
+                          <td className="border border-outline-variant py-2 px-4 text-center">3 Hari</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-outline-variant py-2 px-4 text-on-surface-variant">Izin</td>
+                          <td className="border border-outline-variant py-2 px-4 text-center">3 Hari</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-outline-variant py-2 px-4 text-on-surface-variant">Tanpa Keterangan</td>
+                          <td className="border border-outline-variant py-2 px-4 text-center">0 Hari</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Signatures */}
+                  <div className="text-[12px] leading-[18px] pt-4">
+                    <div className="flex justify-between h-40">
+                      <div className="flex flex-col items-center justify-between">
+                        <p className="text-on-surface-variant">Mengetahui,<br/>Orang Tua/Wali</p>
+                        <div className="border-b border-on-surface w-32 mt-auto"></div>
+                      </div>
+                      <div className="flex flex-col items-center justify-between">
+                        <p className="text-on-surface-variant text-center">Kota Pelajar, 15 Juni 2026<br/>Wali Kelas</p>
+                        <div className="mt-auto text-center">
+                          <p className="font-bold underline">Drs. Sugiyono, M.Pd</p>
+                          <p className="text-on-surface-variant">NIP. 19780512 200501 2 003</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <div className="text-center py-20 bg-surface-container-lowest border border-surface-border rounded-xl">
+              <p className="text-on-surface-variant text-[14px]">Tidak ada data siswa terpilih untuk melihat preview.</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Preview Section */}
-      {selectedStudent ? (
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 max-w-4xl mx-auto transition-all duration-300 hover:shadow-xl relative overflow-hidden">
-          {/* Header watermark */}
-          <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none print:hidden">
-            <FiAward size={200} />
+      {activeModule === 'statistik' && (
+        <div className="bg-surface-container-lowest border border-surface-border rounded-xl p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">monitoring</span>
           </div>
-
-          {/* Rapor Header */}
-          <div className="border-b-2 border-gray-800 pb-6 mb-8 text-center">
-            <h2 className="text-2xl font-bold uppercase tracking-wider text-gray-900">
-              Rapor Hasil Belajar Siswa (Rapor Digital)
-            </h2>
-            <p className="text-sm font-medium text-gray-500 mt-1">SMA Negeri 1 Jakarta</p>
-          </div>
-
-          {/* Student Info Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-sm">
-            <div className="space-y-1.5">
-              <p><strong className="w-32 inline-block">Nama Siswa</strong>: {selectedStudent.name}</p>
-              <p><strong className="w-32 inline-block">NISN</strong>: {selectedStudent.nisn}</p>
-            </div>
-            <div className="space-y-1.5 md:text-right">
-              <p><strong className="w-32 inline-block md:text-left">Kelas</strong>: {selectedStudent.class?.name || 'Belum dimasukkan'}</p>
-              <p><strong className="w-32 inline-block md:text-left">Semester</strong>: {selectedSemester === '2025/2026-1' ? '1 (Ganjil)' : '2 (Genap)'}</p>
-            </div>
-          </div>
-
-          {/* Grades Table */}
-          <h3 className="font-bold text-base text-gray-800 mb-3 uppercase tracking-wide">A. Capaian Hasil Belajar</h3>
-          
-          {loadingPreview ? (
-            <div className="flex justify-center items-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : studentGrades.length === 0 ? (
-            <div className="bg-gray-50 rounded-xl p-8 text-center text-gray-400 border border-dashed text-sm">
-              Belum ada nilai yang direkam untuk siswa ini di semester terpilih.
-            </div>
-          ) : (
-            <div className="border border-gray-300 rounded-xl overflow-hidden mb-8">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 border-b border-gray-300">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-bold text-gray-700 w-12">No</th>
-                    <th className="px-4 py-3 text-left font-bold text-gray-700">Mata Pelajaran</th>
-                    <th className="px-4 py-3 text-center font-bold text-gray-700 w-24">Nilai Angka</th>
-                    <th className="px-4 py-3 text-center font-bold text-gray-700 w-20">Huruf</th>
-                    <th className="px-4 py-3 text-left font-bold text-gray-700">Capaian Kompetensi / Catatan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-300">
-                  {studentGrades.map((g, idx) => (
-                    <tr key={g.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-gray-600">{idx + 1}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-800">{g.subject}</td>
-                      <td className="px-4 py-3 text-center font-bold text-blue-600">{g.score}</td>
-                      <td className="px-4 py-3 text-center font-bold">{g.grade}</td>
-                      <td className="px-4 py-3 text-xs text-gray-600 italic">{g.notes || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Rapor Footer sign section */}
-          <div className="grid grid-cols-2 gap-8 text-center text-sm mt-16">
-            <div>
-              <p>Mengetahui,</p>
-              <p className="font-semibold mt-1">Orang Tua/Wali</p>
-              <div className="h-20 border-b border-gray-400 w-48 mx-auto mt-4"></div>
-            </div>
-            <div>
-              <p>Jakarta, 20 Juni 2026</p>
-              <p className="font-semibold mt-1">Wali Kelas</p>
-              <div className="h-20 border-b border-gray-400 w-48 mx-auto mt-4"></div>
-              <p className="text-xs text-gray-400 mt-2 font-mono">Drs. Sugiyono, M.Pd</p>
-            </div>
-          </div>
+          <h3 className="text-[20px] font-semibold text-on-background mb-2">Statistik Akademik</h3>
+          <p className="text-[14px] text-on-surface-variant max-w-md mx-auto">Modul analisis performa nilai dan tren ketuntasan belajar akan segera tersedia.</p>
         </div>
-      ) : (
-        <div className="text-center py-20 bg-white rounded-xl shadow border border-gray-100">
-          <p className="text-gray-400 text-sm">Tidak ada data siswa terpilih untuk melihat preview.</p>
+      )}
+
+      {activeModule === 'absensi' && (
+        <div className="bg-surface-container-lowest border border-surface-border rounded-xl p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">fact_check</span>
+          </div>
+          <h3 className="text-[20px] font-semibold text-on-background mb-2">Laporan Absensi</h3>
+          <p className="text-[14px] text-on-surface-variant max-w-md mx-auto">Modul rekap kehadiran siswa terintegrasi akan segera tersedia.</p>
+        </div>
+      )}
+
+      {activeModule === 'export' && (
+        <div className="bg-surface-container-lowest border border-surface-border rounded-xl p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">data_table</span>
+          </div>
+          <h3 className="text-[20px] font-semibold text-on-background mb-2">Export Data</h3>
+          <p className="text-[14px] text-on-surface-variant max-w-md mx-auto">Modul unduh data akademik dalam format Excel/CSV akan segera tersedia.</p>
         </div>
       )}
     </div>

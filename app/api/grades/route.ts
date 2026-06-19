@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { errorResponse, successResponse, getGradeFromScore } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { GradeType, LetterGrade } from '@prisma/client';
 
 // GET /api/grades - Query or list grades
 export async function GET(request: NextRequest) {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
         where: {
           classSubjectId: classSubject.id,
           semesterId: activeSemester.id,
-          type: type as any || undefined,
+          type: (type as GradeType) || undefined,
         },
       });
 
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
     }
 
     const numericScore = parseFloat(score);
-    const letterGrade = getGradeFromScore(numericScore) as any;
+    const letterGrade = getGradeFromScore(numericScore) as LetterGrade;
 
     // Upsert Grade
     const grade = await prisma.grade.upsert({

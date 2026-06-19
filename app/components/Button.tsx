@@ -23,20 +23,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+      'font-semibold rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center gap-2';
 
     const variantStyles = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-      secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500',
-      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+      primary:
+        'bg-primary text-on-primary hover:bg-primary-container focus:ring-primary shadow-sm',
+      secondary:
+        'bg-transparent text-secondary border border-secondary hover:bg-secondary/5 focus:ring-secondary',
+      danger:
+        'bg-danger text-white hover:bg-danger/90 focus:ring-danger shadow-sm',
       ghost:
-        'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
+        'bg-transparent text-on-surface-variant hover:bg-surface-border/50 focus:ring-surface-border',
     };
 
     const sizeStyles = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-base',
-      lg: 'px-6 py-3 text-lg',
+      sm: 'px-3 py-1.5 text-[12px] leading-[16px]',
+      md: 'px-4 py-2 text-[14px] leading-[20px]',
+      lg: 'px-6 py-2.5 text-[16px] leading-[24px]',
     };
 
     return (
@@ -46,9 +49,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           baseStyles,
           variantStyles[variant],
           sizeStyles[size],
-          {
-            'opacity-50 cursor-not-allowed': disabled || loading,
-          },
+          (disabled || loading) ? 'opacity-50 cursor-not-allowed' : '',
           className
         )}
         disabled={disabled || loading}
@@ -56,7 +57,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {loading ? (
           <>
-            <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+            <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             Loading...
           </>
         ) : (

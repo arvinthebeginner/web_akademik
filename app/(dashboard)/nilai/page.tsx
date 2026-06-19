@@ -1,8 +1,6 @@
 'use client';
 
-import { Button } from '@/components';
 import React, { useEffect, useState } from 'react';
-import { FiSave, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 interface GradeRow {
@@ -27,21 +25,30 @@ interface SubjectOption {
   name: string;
 }
 
+const selectCls = "w-full bg-surface-container-lowest border border-surface-border rounded py-2 px-3 text-[12px] leading-[18px] text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary appearance-none transition-all";
+const labelCls = "text-[11px] leading-[14px] font-bold text-on-surface-variant uppercase tracking-wider";
+
+function getGradeBadge(letter: string | null) {
+  if (!letter) return 'bg-surface-border text-on-surface-variant';
+  switch (letter) {
+    case 'A': return 'bg-success/10 text-success border border-success/20';
+    case 'B': return 'bg-secondary/10 text-secondary border border-secondary/20';
+    case 'C': return 'bg-warning/10 text-warning border border-warning/20';
+    default: return 'bg-danger/10 text-danger border border-danger/20';
+  }
+}
+
 export default function GradePage() {
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
-  
-  // Selected Filters
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedType, setSelectedType] = useState('UTS'); // UTS, UAS, FORMATIF, SUMATIF, SEMESTER
+  const [selectedType, setSelectedType] = useState('UTS');
 
-  // Grade Data Sheet
   const [gradeRows, setGradeRows] = useState<GradeRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // Load classes & subjects
   useEffect(() => {
     const initFilters = async () => {
       try {
@@ -51,7 +58,6 @@ export default function GradePage() {
           setClasses(data.data);
           if (data.data.length > 0) setSelectedClass(data.data[0].id);
         }
-
         const resSubjects = await fetch('/api/subjects');
         if (resSubjects.ok) {
           const data = await resSubjects.json();
@@ -63,33 +69,29 @@ export default function GradePage() {
         console.error(error);
       }
     };
-
     initFilters();
   }, []);
 
-  // Fetch grades sheet when filters change
-  const loadGradesSheet = async () => {
-    if (!selectedClass || !selectedSubject || !selectedType) return;
-
-    try {
-      setLoading(true);
-      const url = `/api/grades?classId=${selectedClass}&subjectId=${selectedSubject}&type=${selectedType}`;
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setGradeRows(data.data);
-      } else {
-        setGradeRows([]);
-      }
-    } catch (error) {
-      toast.error('Gagal memuat daftar nilai');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const loadGradesSheet = async () => {
+      if (!selectedClass || !selectedSubject || !selectedType) return;
+      try {
+        setLoading(true);
+        const url = `/api/grades?classId=${selectedClass}&subjectId=${selectedSubject}&type=${selectedType}`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          setGradeRows(data.data);
+        } else {
+          setGradeRows([]);
+        }
+      } catch (error) {
+        toast.error('Gagal memuat daftar nilai');
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadGradesSheet();
   }, [selectedClass, selectedSubject, selectedType]);
 
@@ -98,7 +100,6 @@ export default function GradePage() {
       prev.map((row) => {
         if (row.studentId === studentId) {
           const scoreNum = value === '' ? null : parseFloat(value);
-          // Auto calculate letter grade locally
           let letter = null;
           if (scoreNum !== null) {
             if (scoreNum >= 85) letter = 'A';
@@ -120,7 +121,7 @@ export default function GradePage() {
     );
   };
 
-  const handleSaveGrade = async (row: GradeRow) => {
+  const _handleSaveGrade = async (row: GradeRow) => {
     if (row.score === null) {
       toast.error('Harap masukkan nilai numerik!');
       return;
@@ -129,7 +130,6 @@ export default function GradePage() {
       toast.error('Nilai harus di antara 0 sampai 100!');
       return;
     }
-
     try {
       setSavingId(row.studentId);
       const payload = {
@@ -140,13 +140,11 @@ export default function GradePage() {
         type: selectedType,
         notes: row.notes || null,
       };
-
       const response = await fetch('/api/grades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       if (response.ok) {
         toast.success(`Nilai untuk ${row.studentName} berhasil disimpan`);
       } else {
@@ -161,165 +159,193 @@ export default function GradePage() {
     }
   };
 
+  // Quick stats
+  const totalStudents = gradeRows.length;
+  const gradedCount = gradeRows.filter(r => r.score !== null).length;
+  const avgScore = totalStudents > 0
+    ? (gradeRows.reduce((sum, r) => sum + (r.score ?? 0), 0) / totalStudents).toFixed(1)
+    : '0';
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Manajemen Nilai</h1>
-      </div>
-
-      {/* Filter Card */}
-      <div className="bg-white rounded-xl shadow p-6 mb-6 text-gray-700 transition-all duration-300 hover:shadow-md border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Kelas</label>
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Mata Pelajaran</label>
-            <select
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Jenis Penilaian</label>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="UTS">UTS (Ujian Tengah Semester)</option>
-              <option value="UAS">UAS (Ujian Akhir Semester)</option>
-              <option value="FORMATIF">FORMATIF (Tugas/Kuis)</option>
-              <option value="SUMATIF">SUMATIF</option>
-              <option value="SEMESTER">SEMESTER (Rapor Akhir)</option>
-            </select>
-          </div>
+      {/* Page Header */}
+      <div className="mb-gutter flex justify-between items-end">
+        <div>
+          <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background mb-1">Manajemen Nilai</h1>
+          <p className="text-[12px] leading-[18px] text-on-surface-variant">Input and manage student grades for selected classes and subjects.</p>
+        </div>
+        <div className="flex gap-3">
+          <button className="px-4 py-2 bg-transparent text-secondary border border-secondary hover:bg-secondary/5 rounded text-[12px] leading-[16px] font-semibold transition-colors">
+            Import CSV
+          </button>
         </div>
       </div>
 
-      {/* Grade Entry Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      {/* Main Bento Card */}
+      <div className="bg-surface-container-lowest border border-surface-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+        {/* Filter Bar */}
+        <div className="p-4 border-b border-surface-border bg-surface-background flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <label className={labelCls}>Kelas</label>
+            <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className={selectCls}>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <label className={labelCls}>Mata Pelajaran</label>
+            <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className={selectCls}>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <label className={labelCls}>Tipe Penilaian</label>
+            <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className={selectCls}>
+              <option value="FORMATIF">Formatif 1</option>
+              <option value="SUMATIF">Formatif 2</option>
+              <option value="SEMESTER">Sumatif Tengah Semester</option>
+              <option value="UTS">Sumatif Akhir Semester</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <label className={labelCls}>Semester</label>
+            <select className={selectCls}>
+              <option>Semester 2 (Genap)</option>
+              <option>Semester 1 (Ganjil)</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button className="h-[38px] px-6 bg-secondary text-on-secondary rounded text-[12px] leading-[16px] font-semibold hover:bg-primary transition-colors flex items-center justify-center">
+              Tampilkan
+            </button>
+          </div>
         </div>
-      ) : gradeRows.length === 0 ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center border border-gray-100 flex flex-col items-center justify-center">
-          <FiAlertCircle className="text-orange-400 mb-3" size={40} />
-          <h3 className="text-lg font-bold text-gray-700">Tidak Ada Pembelajaran Tersedia</h3>
-          <p className="text-gray-400 mt-1 max-w-md text-sm">
-            Pastikan mata pelajaran yang dipilih sudah dipetakan ke wali kelas/guru di kelas ini pada database.
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow overflow-hidden transition-all duration-300 hover:shadow-md border border-gray-100">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Nama Siswa
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    NISN
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">
-                    Nilai (0-100)
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">
-                    Grade
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Catatan Pembelajaran
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">
-                    Simpan
-                  </th>
+
+        {/* Table Section */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-surface-border border-t-secondary"></div>
+          </div>
+        ) : gradeRows.length === 0 ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center mb-4">
+              <span className="material-symbols-outlined text-warning text-[28px]">warning</span>
+            </div>
+            <h3 className="text-[20px] font-semibold leading-[28px] text-on-background">Tidak Ada Pembelajaran Tersedia</h3>
+            <p className="text-[12px] leading-[18px] text-on-surface-variant mt-1 max-w-md">
+              Pastikan mata pelajaran yang dipilih sudah dipetakan ke wali kelas/guru di kelas ini pada database.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto flex-1 bg-surface-container-lowest p-0">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-surface-background border-b border-surface-border">
+                  <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[60px]">No</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[120px]">NISN</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Nama Siswa</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[120px]">Nilai (0-100)</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[100px] text-center">Grade</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[250px]">Catatan / Feedback</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {gradeRows.map((row) => (
-                  <tr key={row.studentId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                      {row.studentName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 font-mono">
-                      {row.nisn}
-                    </td>
-                    <td className="px-6 py-4">
+              <tbody className="divide-y divide-surface-border">
+                {gradeRows.map((row, idx) => (
+                  <tr key={row.studentId} className="hover:bg-surface-container-low/50 transition-colors group">
+                    <td className="py-2.5 px-4 text-[12px] leading-[18px] text-on-surface-variant">{idx + 1}</td>
+                    <td className="py-2.5 px-4 text-[12px] leading-[18px] text-on-surface-variant">{row.nisn}</td>
+                    <td className="py-2.5 px-4 text-[12px] leading-[16px] font-semibold text-primary">{row.studentName}</td>
+                    <td className="py-2.5 px-4">
                       <input
                         type="number"
                         min="0"
                         max="100"
                         placeholder="--"
-                        className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
+                        className={`w-full max-w-[80px] bg-surface-container-lowest border rounded px-2 py-1.5 text-[12px] leading-[18px] text-center focus:outline-none focus:ring-2 transition-all ${
+                          row.score !== null && row.score < 55
+                            ? 'border-danger/50 focus:ring-danger/50 focus:border-danger bg-danger/5'
+                            : 'border-surface-border focus:ring-secondary/50 focus:border-secondary'
+                        }`}
                         value={row.score === null ? '' : row.score}
                         onChange={(e) => handleScoreChange(row.studentId, e.target.value)}
                       />
                     </td>
-                    <td className="px-6 py-4">
-                      {row.letterGrade ? (
-                        <span className={`px-2.5 py-1 rounded text-xs font-bold ${
-                          row.letterGrade === 'A' 
-                            ? 'bg-green-100 text-green-800' 
-                            : row.letterGrade === 'B' 
-                            ? 'bg-blue-100 text-blue-800'
-                            : row.letterGrade === 'C'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {row.letterGrade}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300 font-bold">-</span>
-                      )}
+                    <td className="py-2.5 px-4 text-center">
+                      <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-bold w-8 ${getGradeBadge(row.letterGrade)}`}>
+                        {row.letterGrade || '-'}
+                      </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="py-2.5 px-4">
                       <input
                         type="text"
-                        placeholder="Contoh: Sangat baik dalam UTS matematika ini"
-                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tambahkan catatan..."
+                        className="w-full bg-surface-container-lowest border border-surface-border rounded px-3 py-1.5 text-[12px] leading-[18px] text-on-surface-variant opacity-70 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all"
                         value={row.notes}
                         onChange={(e) => handleNotesChange(row.studentId, e.target.value)}
                       />
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleSaveGrade(row)}
-                        disabled={savingId === row.studentId}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white shadow-sm transition-all ${
-                          savingId === row.studentId
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-                        }`}
-                      >
-                        {savingId === row.studentId ? (
-                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <FiSave size={14} />
-                        )}
-                        Simpan
-                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Action Footer */}
+        {!loading && gradeRows.length > 0 && (
+          <div className="p-4 border-t border-surface-border bg-surface-background flex justify-end gap-3 mt-auto">
+            <button onClick={() => { setGradeRows([]); }} className="px-5 py-2 bg-transparent text-on-surface-variant hover:bg-surface-border/50 rounded text-[12px] leading-[16px] font-semibold transition-colors flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">refresh</span>
+              Reset
+            </button>
+            <button onClick={async () => {
+              let saved = 0;
+              for (const row of gradeRows) {
+                if (row.score !== null) {
+                  try {
+                    const payload = { studentId: row.studentId, classSubjectId: row.classSubjectId, semesterId: row.semesterId, score: row.score, type: selectedType, notes: row.notes || null };
+                    const res = await fetch('/api/grades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (res.ok) saved++;
+                  } catch { /* skip */ }
+                }
+              }
+              toast.success(`${saved} nilai berhasil disimpan`);
+            }} disabled={savingId !== null} className="px-5 py-2 bg-secondary text-on-secondary hover:bg-primary rounded text-[12px] leading-[16px] font-semibold shadow-sm transition-colors flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">save</span>
+              Simpan Semua Nilai
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Stats */}
+      {!loading && gradeRows.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-gutter">
+          <div className="bg-surface-container-lowest border border-surface-border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-secondary">
+              <span className="material-symbols-outlined">group</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total Siswa</p>
+              <p className="text-[20px] font-semibold leading-[28px] text-on-background">{totalStudents}</p>
+            </div>
+          </div>
+          <div className="bg-surface-container-lowest border border-surface-border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+              <span className="material-symbols-outlined">check_circle</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Sudah Dinilai</p>
+              <p className="text-[20px] font-semibold leading-[28px] text-on-background">{gradedCount} <span className="text-[12px] text-outline font-normal">/ {totalStudents}</span></p>
+            </div>
+          </div>
+          <div className="bg-surface-container-lowest border border-surface-border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+              <span className="material-symbols-outlined">analytics</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Rata-rata Kelas</p>
+              <p className="text-[20px] font-semibold leading-[28px] text-on-background">{avgScore}</p>
+            </div>
           </div>
         </div>
       )}

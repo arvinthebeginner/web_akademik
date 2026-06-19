@@ -1,8 +1,6 @@
 'use client';
 
-import { Button } from '@/components';
-import React, { useEffect, useState } from 'react';
-import { FiSave, FiAlertCircle } from 'react-icons/fi';
+import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 interface AttendanceRow {
@@ -19,11 +17,19 @@ interface ClassOption {
   name: string;
 }
 
+const selectCls = "w-full bg-surface-container-lowest border border-surface-border rounded py-2 px-3 text-[12px] leading-[18px] text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary appearance-none transition-all";
+const labelCls = "text-[11px] leading-[14px] font-bold text-on-surface-variant uppercase tracking-wider";
+
+const statusConfig = {
+  HADIR: { active: 'bg-success text-on-primary', icon: 'check_circle' },
+  SAKIT: { active: 'bg-warning text-white', icon: 'medical_services' },
+  IZIN:  { active: 'bg-secondary text-on-secondary', icon: 'description' },
+  ALPA:  { active: 'bg-danger text-white', icon: 'close' },
+} as const;
+
 export default function AttendancePage() {
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
-  
-  // Date selection (default to today)
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -33,7 +39,6 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load classes on mount
   useEffect(() => {
     const loadClasses = async () => {
       try {
@@ -41,9 +46,7 @@ export default function AttendancePage() {
         if (response.ok) {
           const data = await response.json();
           setClasses(data.data);
-          if (data.data.length > 0) {
-            setSelectedClass(data.data[0].id);
-          }
+          if (data.data.length > 0) setSelectedClass(data.data[0].id);
         }
       } catch (error) {
         toast.error('Gagal memuat daftar kelas');
@@ -53,10 +56,8 @@ export default function AttendancePage() {
     loadClasses();
   }, []);
 
-  // Fetch daily attendance sheet when class/date changes
-  const loadAttendanceSheet = async () => {
+  const loadAttendanceSheet = useCallback(async () => {
     if (!selectedClass || !selectedDate) return;
-
     try {
       setLoading(true);
       const response = await fetch(`/api/attendance?classId=${selectedClass}&date=${selectedDate}`);
@@ -72,11 +73,12 @@ export default function AttendancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClass, selectedDate]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAttendanceSheet();
-  }, [selectedClass, selectedDate]);
+  }, [loadAttendanceSheet]);
 
   const handleStatusChange = (studentId: string, status: AttendanceRow['status']) => {
     setAttendanceRows((prev) =>
@@ -92,7 +94,6 @@ export default function AttendancePage() {
 
   const handleSaveAttendance = async () => {
     if (attendanceRows.length === 0) return;
-
     try {
       setSaving(true);
       const payload = {
@@ -104,13 +105,11 @@ export default function AttendancePage() {
           notes: row.notes || null,
         })),
       };
-
       const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       if (response.ok) {
         toast.success('Kehadiran berhasil disimpan untuk kelas ini');
         loadAttendanceSheet();
@@ -126,139 +125,170 @@ export default function AttendancePage() {
     }
   };
 
+  // Quick stats
+  const totalStudents = attendanceRows.length;
+  const hadirCount = attendanceRows.filter(r => r.status === 'HADIR').length;
+  const alpaCount = attendanceRows.filter(r => r.status === 'ALPA').length;
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Manajemen Absensi</h1>
+      {/* Page Header */}
+      <div className="mb-gutter flex justify-between items-end">
+        <div>
+          <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background mb-1">Manajemen Absensi</h1>
+          <p className="text-[12px] leading-[18px] text-on-surface-variant">Record and manage daily student attendance per class.</p>
+        </div>
         {attendanceRows.length > 0 && (
-          <Button 
-            variant="primary" 
-            size="md" 
+          <button
             onClick={handleSaveAttendance}
             disabled={saving}
+            className="px-5 py-2 bg-secondary text-on-secondary hover:bg-primary rounded text-[12px] leading-[16px] font-semibold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FiSave className="inline mr-2" /> {saving ? 'Menyimpan...' : 'Simpan Kehadiran'}
-          </Button>
+            <span className="material-symbols-outlined text-[18px]">save</span>
+            {saving ? 'Menyimpan...' : 'Simpan Kehadiran'}
+          </button>
         )}
       </div>
 
-      {/* Filter Card */}
-      <div className="bg-white rounded-xl shadow p-6 mb-6 text-gray-700 transition-all duration-300 hover:shadow-md border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Kelas</label>
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+      {/* Main Bento Card */}
+      <div className="bg-surface-container-lowest border border-surface-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+        {/* Filter Bar */}
+        <div className="p-4 border-b border-surface-border bg-surface-background flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <label className={labelCls}>Kelas</label>
+            <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className={selectCls}>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Tanggal</label>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <label className={labelCls}>Tanggal</label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-surface-container-lowest border border-surface-border rounded py-2 px-3 text-[12px] leading-[18px] text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all"
             />
           </div>
         </div>
+
+        {/* Table Section */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-surface-border border-t-secondary"></div>
+          </div>
+        ) : attendanceRows.length === 0 ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center mb-4">
+              <span className="material-symbols-outlined text-warning text-[28px]">warning</span>
+            </div>
+            <h3 className="text-[20px] font-semibold leading-[28px] text-on-background">Tidak Ada Siswa Terdaftar</h3>
+            <p className="text-[12px] leading-[18px] text-on-surface-variant mt-1 max-w-md">
+              Pastikan kelas yang dipilih memiliki siswa terdaftar yang aktif.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto flex-1 bg-surface-container-lowest p-0">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-surface-background border-b border-surface-border">
+                    <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[60px]">No</th>
+                    <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[120px]">NISN</th>
+                    <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Nama Siswa</th>
+                    <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[320px] text-center">Status Kehadiran</th>
+                    <th className="py-3 px-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider w-[220px]">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border">
+                  {attendanceRows.map((row, idx) => (
+                    <tr key={row.studentId} className="hover:bg-surface-container-low/50 transition-colors group">
+                      <td className="py-2.5 px-4 text-[12px] leading-[18px] text-on-surface-variant">{idx + 1}</td>
+                      <td className="py-2.5 px-4 text-[12px] leading-[18px] text-on-surface-variant">{row.nisn}</td>
+                      <td className="py-2.5 px-4 text-[12px] leading-[16px] font-semibold text-primary">{row.studentName}</td>
+                      <td className="py-2.5 px-4">
+                        <div className="flex justify-center gap-1 bg-surface-background p-1 rounded">
+                          {(['HADIR', 'SAKIT', 'IZIN', 'ALPA'] as const).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() => handleStatusChange(row.studentId, status)}
+                              className={`flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                                row.status === status
+                                  ? statusConfig[status].active + ' shadow-sm'
+                                  : 'text-on-surface-variant hover:bg-surface-container-low'
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-[14px]">{statusConfig[status].icon}</span>
+                              {status}
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <input
+                          type="text"
+                          placeholder="Keterangan tambahan..."
+                          className="w-full bg-surface-container-lowest border border-surface-border rounded px-3 py-1.5 text-[12px] leading-[18px] text-on-surface-variant opacity-70 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all"
+                          value={row.notes}
+                          onChange={(e) => handleNotesChange(row.studentId, e.target.value)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Action Footer */}
+            <div className="p-4 border-t border-surface-border bg-surface-background flex justify-end gap-3 mt-auto">
+              <button
+                onClick={() => loadAttendanceSheet()}
+                className="px-5 py-2 bg-transparent text-on-surface-variant hover:bg-surface-border/50 rounded text-[12px] leading-[16px] font-semibold transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">refresh</span>
+                Reset
+              </button>
+              <button
+                onClick={handleSaveAttendance}
+                disabled={saving}
+                className="px-5 py-2 bg-secondary text-on-secondary hover:bg-primary rounded text-[12px] leading-[16px] font-semibold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-[18px]">save</span>
+                {saving ? 'Menyimpan...' : 'Simpan Kehadiran'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Attendance Sheet Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : attendanceRows.length === 0 ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center border border-gray-100 flex flex-col items-center justify-center">
-          <FiAlertCircle className="text-orange-400 mb-3" size={40} />
-          <h3 className="text-lg font-bold text-gray-700">Tidak Ada Siswa Terdaftar</h3>
-          <p className="text-gray-400 mt-1 max-w-md text-sm">
-            Pastikan kelas yang dipilih memiliki siswa terdaftar yang aktif.
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow overflow-hidden transition-all duration-300 hover:shadow-md border border-gray-100">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Nama Siswa
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    NISN
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-80">
-                    Status Kehadiran
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Keterangan (Catatan)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {attendanceRows.map((row) => (
-                  <tr key={row.studentId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                      {row.studentName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 font-mono">
-                      {row.nisn}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center gap-1 bg-gray-100 p-1 rounded-lg">
-                        {(['HADIR', 'SAKIT', 'IZIN', 'ALPA'] as const).map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() => handleStatusChange(row.studentId, status)}
-                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                              row.status === status
-                                ? status === 'HADIR'
-                                  ? 'bg-green-600 text-white shadow-sm'
-                                  : status === 'SAKIT'
-                                  ? 'bg-yellow-500 text-white shadow-sm'
-                                  : status === 'IZIN'
-                                  ? 'bg-blue-600 text-white shadow-sm'
-                                  : 'bg-red-600 text-white shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-200'
-                            }`}
-                          >
-                            {status}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="text"
-                        placeholder="Keterangan tambahan..."
-                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={row.notes}
-                        onChange={(e) => handleNotesChange(row.studentId, e.target.value)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Quick Stats */}
+      {!loading && attendanceRows.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-gutter">
+          <div className="bg-surface-container-lowest border border-surface-border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-secondary">
+              <span className="material-symbols-outlined">group</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total Siswa</p>
+              <p className="text-[20px] font-semibold leading-[28px] text-on-background">{totalStudents}</p>
+            </div>
           </div>
-          <div className="p-4 bg-gray-50 flex justify-end border-t">
-            <Button 
-              variant="primary" 
-              size="md" 
-              onClick={handleSaveAttendance}
-              disabled={saving}
-            >
-              <FiSave className="inline mr-2" /> {saving ? 'Menyimpan...' : 'Simpan Kehadiran'}
-            </Button>
+          <div className="bg-surface-container-lowest border border-surface-border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+              <span className="material-symbols-outlined">check_circle</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Hadir</p>
+              <p className="text-[20px] font-semibold leading-[28px] text-on-background">{hadirCount} <span className="text-[12px] text-outline font-normal">/ {totalStudents}</span></p>
+            </div>
+          </div>
+          <div className="bg-surface-container-lowest border border-surface-border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center text-danger">
+              <span className="material-symbols-outlined">cancel</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Alpa</p>
+              <p className="text-[20px] font-semibold leading-[28px] text-on-background">{alpaCount} <span className="text-[12px] text-outline font-normal">/ {totalStudents}</span></p>
+            </div>
           </div>
         </div>
       )}

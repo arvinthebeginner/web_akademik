@@ -10,23 +10,33 @@ interface AlertProps {
 
 export const Alert: React.FC<AlertProps> = ({ type, message, onClose }) => {
   const typeStyles = {
-    success: 'bg-green-100 text-green-800 border-green-300',
-    error: 'bg-red-100 text-red-800 border-red-300',
-    warning: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    info: 'bg-blue-100 text-blue-800 border-blue-300',
+    success: 'bg-success/10 text-success border-success/20',
+    error: 'bg-error-container text-on-error-container border-error/20',
+    warning: 'bg-warning/10 text-warning border-warning/20',
+    info: 'bg-secondary/10 text-secondary border-secondary/20',
+  };
+
+  const iconMap = {
+    success: 'check_circle',
+    error: 'error',
+    warning: 'warning',
+    info: 'info',
   };
 
   return (
     <div
-      className={`border rounded-lg p-4 mb-4 ${typeStyles[type]} flex justify-between items-center`}
+      className={`border rounded-lg p-4 mb-4 flex items-center gap-3 ${typeStyles[type]}`}
     >
-      <span>{message}</span>
+      <span className="material-symbols-outlined text-[20px] shrink-0">
+        {iconMap[type]}
+      </span>
+      <span className="flex-1 text-[14px] leading-[20px]">{message}</span>
       {onClose && (
         <button
           onClick={onClose}
-          className="text-lg font-bold cursor-pointer"
+          className="shrink-0 hover:opacity-70 transition-opacity"
         >
-          ×
+          <span className="material-symbols-outlined text-[18px]">close</span>
         </button>
       )}
     </div>

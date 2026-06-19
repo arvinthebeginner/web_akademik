@@ -3,7 +3,7 @@ import { errorResponse, successResponse } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/subjects - Get all subjects
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const subjects = await prisma.subject.findMany({
       orderBy: {

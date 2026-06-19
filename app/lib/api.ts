@@ -29,14 +29,14 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
   });
 }
 
-export async function apiPost<T>(endpoint: string, data: any): Promise<T> {
+export async function apiPost<T>(endpoint: string, data: Record<string, unknown>): Promise<T> {
   return apiCall<T>(endpoint, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function apiPut<T>(endpoint: string, data: any): Promise<T> {
+export async function apiPut<T>(endpoint: string, data: Record<string, unknown>): Promise<T> {
   return apiCall<T>(endpoint, {
     method: 'PUT',
     body: JSON.stringify(data),
