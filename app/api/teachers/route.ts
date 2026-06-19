@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { errorResponse, successResponse } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 
 // GET /api/teachers - Get list of teachers
 export async function GET(_request: NextRequest) {
@@ -54,6 +55,15 @@ export async function GET(_request: NextRequest) {
 // POST /api/teachers - Create a teacher & user account
 export async function POST(request: NextRequest) {
   try {
+    // Role guard
+    const token = request.cookies.get('token')?.value;
+    if (!token) return NextResponse.json(errorResponse('Unauthorized'), { status: 401 });
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'secret') as { id: string };
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'KEPALA_SEKOLAH')) {
+      return NextResponse.json(errorResponse('Forbidden: Only Admin or Principal can create teachers'), { status: 403 });
+    }
+
     const body = await request.json();
     const {
       nip,

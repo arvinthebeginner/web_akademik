@@ -18,9 +18,11 @@ const navigationItems: NavItem[] = [
   { label: 'Guru', href: '/guru', roles: ['ADMIN', 'KEPALA_SEKOLAH'], icon: 'school' },
   { label: 'Kelas', href: '/kelas', roles: ['ADMIN', 'GURU', 'KEPALA_SEKOLAH'], icon: 'groups' },
   { label: 'Nilai', href: '/nilai', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'], icon: 'grade' },
+  { label: 'Tugas', href: '/tugas', roles: ['ADMIN', 'GURU', 'SISWA'], icon: 'assignment' },
   { label: 'Absensi', href: '/absensi', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'], icon: 'event_available' },
   { label: 'Pesan', href: '/pesan', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'], icon: 'mail' },
   { label: 'Laporan', href: '/laporan', roles: ['ADMIN', 'GURU', 'SISWA', 'ORANG_TUA'], icon: 'assessment' },
+  { label: 'Portal Orang Tua', href: '/portal-ortu', roles: ['ORANG_TUA'], icon: 'family_restroom' },
 ];
 
 interface SidebarProps {

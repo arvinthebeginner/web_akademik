@@ -39,11 +39,15 @@ function getGradeBadge(letter: string | null) {
 }
 
 export default function GradePage() {
+  const [userRole, setUserRole] = useState('');
+  const [userName, setUserName] = useState('');
+  const [userClassName, setUserClassName] = useState('');
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedType, setSelectedType] = useState('UTS');
+  const canEdit = userRole === 'ADMIN' || userRole === 'GURU';
 
   const [gradeRows, setGradeRows] = useState<GradeRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,17 +56,40 @@ export default function GradePage() {
   useEffect(() => {
     const initFilters = async () => {
       try {
-        const resClasses = await fetch('/api/classes');
+        const [resClasses, resSubjects, meRes, studentsRes] = await Promise.all([
+          fetch('/api/classes'),
+          fetch('/api/subjects'),
+          fetch('/api/auth/me'),
+          fetch('/api/students'),
+        ]);
+        let allClasses: ClassOption[] = [];
         if (resClasses.ok) {
           const data = await resClasses.json();
+          allClasses = data.data;
           setClasses(data.data);
           if (data.data.length > 0) setSelectedClass(data.data[0].id);
         }
-        const resSubjects = await fetch('/api/subjects');
         if (resSubjects.ok) {
           const data = await resSubjects.json();
           setSubjects(data.data);
           if (data.data.length > 0) setSelectedSubject(data.data[0].id);
+        }
+        // For SISWA: auto-select own class
+        if (meRes.ok && studentsRes.ok) {
+          const meData = await meRes.json();
+          const role = meData.data?.role || '';
+          setUserRole(role);
+          setUserName(meData.data?.name || '');
+          if (role === 'SISWA') {
+            const studentsData = await studentsRes.json();
+            const myStudent = studentsData.data.find((s: { userId?: string; email?: string }) => s.userId === meData.data?.id)
+              || studentsData.data.find((s: { userId?: string; email?: string }) => s.email === meData.data?.email);
+            if (myStudent?.classId) {
+              setSelectedClass(myStudent.classId);
+              setClasses(allClasses.filter((c: ClassOption) => c.id === myStudent.classId));
+              setUserClassName(myStudent.class?.name || '');
+            }
+          }
         }
       } catch (error) {
         toast.error('Gagal mengambil data filter');
@@ -160,10 +187,11 @@ export default function GradePage() {
   };
 
   // Quick stats
-  const totalStudents = gradeRows.length;
-  const gradedCount = gradeRows.filter(r => r.score !== null).length;
+  const visibleRows = canEdit ? gradeRows : gradeRows.filter(r => r.studentName === userName);
+  const totalStudents = visibleRows.length;
+  const gradedCount = visibleRows.filter(r => r.score !== null).length;
   const avgScore = totalStudents > 0
-    ? (gradeRows.reduce((sum, r) => sum + (r.score ?? 0), 0) / totalStudents).toFixed(1)
+    ? (visibleRows.reduce((sum, r) => sum + (r.score ?? 0), 0) / totalStudents).toFixed(1)
     : '0';
 
   return (
@@ -171,15 +199,30 @@ export default function GradePage() {
       {/* Page Header */}
       <div className="mb-gutter flex justify-between items-end">
         <div>
-          <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background mb-1">Manajemen Nilai</h1>
-          <p className="text-[12px] leading-[18px] text-on-surface-variant">Input and manage student grades for selected classes and subjects.</p>
+          <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background mb-1">{canEdit ? 'Manajemen Nilai' : 'Nilai Saya'}</h1>
+          <p className="text-[12px] leading-[18px] text-on-surface-variant">{canEdit ? 'Input and manage student grades for selected classes and subjects.' : 'Lihat daftar nilai Anda dari guru.'}</p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-transparent text-secondary border border-secondary hover:bg-secondary/5 rounded text-[12px] leading-[16px] font-semibold transition-colors">
-            Import CSV
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-3">
+            <button className="px-4 py-2 bg-transparent text-secondary border border-secondary hover:bg-secondary/5 rounded text-[12px] leading-[16px] font-semibold transition-colors">
+              Import CSV
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Student Info Banner (SISWA only) */}
+      {!canEdit && userName && (
+        <div className="mb-stack-md bg-primary-container border border-primary/20 rounded-xl p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center text-[16px] font-bold">
+            {userName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-on-primary-container">{userName}</p>
+            <p className="text-[12px] text-on-primary-container/70">Kelas: {userClassName || '-'}</p>
+          </div>
+        </div>
+      )}
 
       {/* Main Bento Card */}
       <div className="bg-surface-container-lowest border border-surface-border rounded-xl shadow-sm overflow-hidden flex flex-col">
@@ -187,7 +230,8 @@ export default function GradePage() {
         <div className="p-4 border-b border-surface-border bg-surface-background flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
             <label className={labelCls}>Kelas</label>
-            <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className={selectCls}>
+            <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={!canEdit}
+              className={`${selectCls} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -249,25 +293,29 @@ export default function GradePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-border">
-                {gradeRows.map((row, idx) => (
+                {visibleRows.map((row, idx) => (
                   <tr key={row.studentId} className="hover:bg-surface-container-low/50 transition-colors group">
                     <td className="py-2.5 px-4 text-[12px] leading-[18px] text-on-surface-variant">{idx + 1}</td>
                     <td className="py-2.5 px-4 text-[12px] leading-[18px] text-on-surface-variant">{row.nisn}</td>
                     <td className="py-2.5 px-4 text-[12px] leading-[16px] font-semibold text-primary">{row.studentName}</td>
                     <td className="py-2.5 px-4">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        placeholder="--"
-                        className={`w-full max-w-[80px] bg-surface-container-lowest border rounded px-2 py-1.5 text-[12px] leading-[18px] text-center focus:outline-none focus:ring-2 transition-all ${
-                          row.score !== null && row.score < 55
-                            ? 'border-danger/50 focus:ring-danger/50 focus:border-danger bg-danger/5'
-                            : 'border-surface-border focus:ring-secondary/50 focus:border-secondary'
-                        }`}
-                        value={row.score === null ? '' : row.score}
-                        onChange={(e) => handleScoreChange(row.studentId, e.target.value)}
-                      />
+                      {canEdit ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="--"
+                          className={`w-full max-w-[80px] bg-surface-container-lowest border rounded px-2 py-1.5 text-[12px] leading-[18px] text-center focus:outline-none focus:ring-2 transition-all ${
+                            row.score !== null && row.score < 55
+                              ? 'border-danger/50 focus:ring-danger/50 focus:border-danger bg-danger/5'
+                              : 'border-surface-border focus:ring-secondary/50 focus:border-secondary'
+                          }`}
+                          value={row.score === null ? '' : row.score}
+                          onChange={(e) => handleScoreChange(row.studentId, e.target.value)}
+                        />
+                      ) : (
+                        <span className="text-[14px] font-semibold text-on-surface">{row.score ?? '--'}</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-4 text-center">
                       <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-bold w-8 ${getGradeBadge(row.letterGrade)}`}>
@@ -275,13 +323,17 @@ export default function GradePage() {
                       </span>
                     </td>
                     <td className="py-2.5 px-4">
-                      <input
-                        type="text"
-                        placeholder="Tambahkan catatan..."
-                        className="w-full bg-surface-container-lowest border border-surface-border rounded px-3 py-1.5 text-[12px] leading-[18px] text-on-surface-variant opacity-70 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all"
-                        value={row.notes}
-                        onChange={(e) => handleNotesChange(row.studentId, e.target.value)}
-                      />
+                      {canEdit ? (
+                        <input
+                          type="text"
+                          placeholder="Tambahkan catatan..."
+                          className="w-full bg-surface-container-lowest border border-surface-border rounded px-3 py-1.5 text-[12px] leading-[18px] text-on-surface-variant opacity-70 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all"
+                          value={row.notes}
+                          onChange={(e) => handleNotesChange(row.studentId, e.target.value)}
+                        />
+                      ) : (
+                        <span className="text-[12px] text-on-surface-variant">{row.notes || '-'}</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -291,7 +343,7 @@ export default function GradePage() {
         )}
 
         {/* Action Footer */}
-        {!loading && gradeRows.length > 0 && (
+        {!loading && gradeRows.length > 0 && canEdit && (
           <div className="p-4 border-t border-surface-border bg-surface-background flex justify-end gap-3 mt-auto">
             <button onClick={() => { setGradeRows([]); }} className="px-5 py-2 bg-transparent text-on-surface-variant hover:bg-surface-border/50 rounded text-[12px] leading-[16px] font-semibold transition-colors flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">refresh</span>

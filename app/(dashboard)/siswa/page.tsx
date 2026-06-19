@@ -3,6 +3,7 @@
 import { Button } from '@/components';
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface Student {
   id: string;
@@ -25,6 +26,9 @@ interface ClassOption {
 }
 
 export default function StudentPage() {
+  const router = useRouter();
+  const [userRole, setUserRole] = useState('');
+  const canEdit = userRole === 'ADMIN' || userRole === 'GURU' || userRole === 'KEPALA_SEKOLAH';
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +50,9 @@ export default function StudentPage() {
   const [classId, setClassId] = useState('');
   const [status, setStatus] = useState<Student['status']>('AKTIF');
   const [submitting, setSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -59,6 +66,23 @@ export default function StudentPage() {
   }, []);
 
   useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          const role = data.data?.role || '';
+          setUserRole(role);
+          if (role !== 'ADMIN' && role !== 'GURU' && role !== 'KEPALA_SEKOLAH') {
+            router.push('/');
+          }
+        }
+      } catch { /* skip */ }
+    };
+    fetchUser();
+  }, [router]);
+
+  useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
@@ -66,7 +90,7 @@ export default function StudentPage() {
   const handleOpenAddModal = () => {
     setEditingStudent(null); setNisn(''); setNis(''); setName(''); setEmail('');
     setGender('L'); setDateOfBirth(''); setAddress(''); setPhone('');
-    setClassId(classes[0]?.id || ''); setStatus('AKTIF'); setIsModalOpen(true);
+    setClassId(classes[0]?.id || ''); setStatus('AKTIF'); setPhotoFile(null); setPhotoPreview(''); setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (student: Student) => {
@@ -74,7 +98,16 @@ export default function StudentPage() {
     setName(student.name); setEmail(student.email || ''); setGender(student.gender);
     setDateOfBirth(student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '');
     setAddress(student.address || ''); setPhone(student.phone || '');
-    setClassId(student.classId); setStatus(student.status); setIsModalOpen(true);
+    setClassId(student.classId); setStatus(student.status); setPhotoFile(null); setPhotoPreview(''); setIsModalOpen(true);
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { toast.error('Ukuran foto maksimal 2MB'); return; }
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,7 +120,18 @@ export default function StudentPage() {
       const method = editingStudent ? 'PUT' : 'POST';
       const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const resData = await response.json();
-      if (response.ok) { toast.success(editingStudent ? 'Data siswa berhasil diperbarui' : 'Siswa baru berhasil ditambahkan'); setIsModalOpen(false); loadData(); }
+      if (response.ok) {
+        // Upload photo if selected
+        if (photoFile) {
+          setUploadingPhoto(true);
+          const formData = new FormData();
+          formData.append('file', photoFile);
+          formData.append('category', 'siswa');
+          await fetch('/api/upload', { method: 'POST', body: formData });
+          setUploadingPhoto(false);
+        }
+        toast.success(editingStudent ? 'Data siswa berhasil diperbarui' : 'Siswa baru berhasil ditambahkan'); setIsModalOpen(false); loadData();
+      }
       else { toast.error(resData.error || 'Terjadi kesalahan'); }
     } catch (error) { toast.error('Gagal memproses data'); console.error(error); }
     finally { setSubmitting(false); }
@@ -133,10 +177,12 @@ export default function StudentPage() {
           <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background">Manajemen Siswa</h1>
           <p className="text-[14px] leading-[20px] text-on-surface-variant mt-1">Kelola data siswa, status, dan informasi akademik.</p>
         </div>
-        <button onClick={handleOpenAddModal} className="bg-primary hover:bg-primary-container text-on-primary text-[14px] font-semibold leading-[20px] px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Tambah Siswa
-        </button>
+        {canEdit && (
+          <button onClick={handleOpenAddModal} className="bg-primary hover:bg-primary-container text-on-primary text-[14px] font-semibold leading-[20px] px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            Tambah Siswa
+          </button>
+        )}
       </div>
 
       {/* Filters & Actions Bar */}
@@ -200,12 +246,16 @@ export default function StudentPage() {
                       <button className="p-1.5 text-on-surface-variant hover:text-primary rounded-md hover:bg-surface-variant transition-colors" title="View">
                         <span className="material-symbols-outlined text-[20px]">visibility</span>
                       </button>
-                      <button onClick={() => handleOpenEditModal(student)} className="p-1.5 text-on-surface-variant hover:text-secondary rounded-md hover:bg-surface-variant transition-colors" title="Edit">
-                        <span className="material-symbols-outlined text-[20px]">edit</span>
-                      </button>
-                      <button onClick={() => handleDelete(student.id)} className="p-1.5 text-on-surface-variant hover:text-danger rounded-md hover:bg-error-container transition-colors" title="Delete">
-                        <span className="material-symbols-outlined text-[20px]">delete</span>
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button onClick={() => handleOpenEditModal(student)} className="p-1.5 text-on-surface-variant hover:text-secondary rounded-md hover:bg-surface-variant transition-colors" title="Edit">
+                            <span className="material-symbols-outlined text-[20px]">edit</span>
+                          </button>
+                          <button onClick={() => handleDelete(student.id)} className="p-1.5 text-on-surface-variant hover:text-danger rounded-md hover:bg-error-container transition-colors" title="Delete">
+                            <span className="material-symbols-outlined text-[20px]">delete</span>
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -271,6 +321,26 @@ export default function StudentPage() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Photo Upload */}
+              <div className="flex items-center gap-4 pb-2">
+                <div className="w-16 h-16 rounded-full bg-surface-container-low border border-surface-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {photoPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-[28px] text-on-surface-variant">person</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-surface-border bg-surface-container-low hover:bg-surface-container text-on-surface text-[12px] font-semibold cursor-pointer transition-colors">
+                    <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                    {photoFile ? 'Ganti Foto' : 'Upload Foto'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
+                  </label>
+                  {photoFile && <p className="text-[11px] text-on-surface-variant mt-1">{photoFile.name}</p>}
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">JPEG, PNG, WebP (maks 2MB)</p>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className={labelCls}>NISN *</label><input type="text" required placeholder="Contoh: 0012345001" className={inputCls} value={nisn} onChange={(e) => setNisn(e.target.value)} /></div>
                 <div><label className={labelCls}>NIS</label><input type="text" placeholder="Contoh: 23241001" className={inputCls} value={nis} onChange={(e) => setNis(e.target.value)} /></div>
@@ -293,7 +363,7 @@ export default function StudentPage() {
               <div><label className={labelCls}>Alamat Rumah</label><textarea placeholder="Alamat lengkap siswa" rows={2} className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} /></div>
               <div className="flex justify-end gap-3 pt-4 border-t border-surface-border">
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={submitting}>Batal</Button>
-                <Button type="submit" variant="primary" disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan'}</Button>
+                <Button type="submit" variant="primary" disabled={submitting || uploadingPhoto}>{uploadingPhoto ? 'Mengupload...' : submitting ? 'Menyimpan...' : 'Simpan'}</Button>
               </div>
             </form>
           </div>

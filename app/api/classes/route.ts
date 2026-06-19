@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { errorResponse, successResponse } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 
 // GET /api/classes - List all classes
 export async function GET(_request: NextRequest) {
@@ -47,6 +48,15 @@ export async function GET(_request: NextRequest) {
 // POST /api/classes - Create new class
 export async function POST(request: NextRequest) {
   try {
+    // Role guard
+    const token = request.cookies.get('token')?.value;
+    if (!token) return NextResponse.json(errorResponse('Unauthorized'), { status: 401 });
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'secret') as { id: string };
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'GURU' && user.role !== 'KEPALA_SEKOLAH')) {
+      return NextResponse.json(errorResponse('Forbidden: Only Admin, Teacher, or Principal can create classes'), { status: 403 });
+    }
+
     const body = await request.json();
     const { name, gradeLevel, capacity, homeRoomTeacherId } = body;
 

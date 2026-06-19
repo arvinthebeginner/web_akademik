@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { errorResponse, successResponse } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 
 // GET /api/students/[id] - Get student details
 export async function GET(
@@ -34,6 +35,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Role guard
+    const token = request.cookies.get('token')?.value;
+    if (!token) return NextResponse.json(errorResponse('Unauthorized'), { status: 401 });
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'secret') as { id: string };
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'GURU' && user.role !== 'KEPALA_SEKOLAH')) {
+      return NextResponse.json(errorResponse('Forbidden: Only Admin, Teacher, or Principal can update students'), { status: 403 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const {
@@ -125,6 +135,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Role guard
+    const token = request.cookies.get('token')?.value;
+    if (!token) return NextResponse.json(errorResponse('Unauthorized'), { status: 401 });
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'secret') as { id: string };
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'GURU' && user.role !== 'KEPALA_SEKOLAH')) {
+      return NextResponse.json(errorResponse('Forbidden: Only Admin, Teacher, or Principal can delete students'), { status: 403 });
+    }
+
     const { id } = await params;
     const student = await prisma.student.findUnique({
       where: { id },

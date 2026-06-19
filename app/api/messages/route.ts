@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { errorResponse, successResponse } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { sendMessageNotification } from '@/lib/email';
 
 // GET /api/messages - Retrieve threads or message history
 export async function GET(request: NextRequest) {
@@ -165,6 +166,19 @@ export async function POST(request: NextRequest) {
         isRead: false,
       },
     });
+
+    // Send email notification (non-blocking, won't affect response)
+    if (newMessage) {
+      try {
+        const [sender, recipient] = await Promise.all([
+          prisma.user.findUnique({ where: { id: myUserId }, select: { name: true } }),
+          prisma.user.findUnique({ where: { id: recipientId }, select: { name: true, email: true } }),
+        ]);
+        if (sender && recipient?.email) {
+          sendMessageNotification(recipient.email, recipient.name, sender.name, message).catch(() => {});
+        }
+      } catch (e) { console.error('Email notification error:', e); }
+    }
 
     const formattedMessage = {
       id: newMessage.id,

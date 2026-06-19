@@ -3,11 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface StudentOption {
   id: string;
   name: string;
   nisn: string;
+  userId?: string;
+  email?: string;
   class?: { name: string };
 }
 
@@ -74,16 +78,38 @@ export default function LaporanPage() {
   const [loading, setLoading] = useState(false);
   const [studentGrades, setStudentGrades] = useState<GradeRecord[]>([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [userRole, setUserRole] = useState('');
+  const canEdit = userRole === 'ADMIN' || userRole === 'GURU';
 
   useEffect(() => {
     const loadStudents = async () => {
       try {
         setLoading(true);
+        // Fetch user info first
+        const meRes = await fetch('/api/auth/me');
+        let role = '';
+        let myUserId = '';
+        let myEmail = '';
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          role = meData.data?.role || '';
+          myUserId = meData.data?.id || '';
+          myEmail = meData.data?.email || '';
+          setUserRole(role);
+        }
         const response = await fetch('/api/students');
         if (response.ok) {
           const data = await response.json();
           setStudents(data.data);
-          if (data.data.length > 0) setSelectedStudentId(data.data[0].id);
+          if (role === 'SISWA') {
+            // Auto-select own student record by userId or email
+            const myStudent = data.data.find((s: StudentOption) => s.userId === myUserId)
+              || data.data.find((s: StudentOption) => s.email === myEmail);
+            if (myStudent) setSelectedStudentId(myStudent.id);
+            else if (data.data.length > 0) setSelectedStudentId(data.data[0].id);
+          } else {
+            if (data.data.length > 0) setSelectedStudentId(data.data[0].id);
+          }
         }
       } catch (error) {
         toast.error('Gagal mengambil data siswa');
@@ -130,7 +156,124 @@ export default function LaporanPage() {
 
   const handleDownload = () => {
     if (!selectedStudentId) { toast.error('Harap pilih siswa terlebih dahulu'); return; }
-    toast.success(`Mengunduh laporan rapor untuk ${selectedStudent?.name}...`);
+    if (!selectedStudent) return;
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    let y = margin;
+
+    // School Header
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KEMENTERIAN PENDIDIKAN, KEBUDAYAAN, RISET, DAN TEKNOLOGI', pageWidth / 2, y, { align: 'center' });
+    y += 5;
+    doc.setFontSize(12);
+    doc.text('SMA NEGERI 1 NUSANTARA', pageWidth / 2, y, { align: 'center' });
+    y += 4;
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Jl. Pendidikan No. 123, Kota Pelajar, Provinsi Ilmu Pengetahuan 45678', pageWidth / 2, y, { align: 'center' });
+    y += 3;
+    doc.text('Telp: (021) 555-0198 | Email: info@sman1nusantara.sch.id', pageWidth / 2, y, { align: 'center' });
+    y += 3;
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    // Title
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LAPORAN HASIL BELAJAR (RAPOR)', pageWidth / 2, y, { align: 'center' });
+    y += 10;
+
+    // Student Info
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const infoData = [
+      ['Nama Peserta Didik', selectedStudent.name],
+      ['NISN / NIS', selectedStudent.nisn],
+      ['Kelas / Fase', selectedStudent.class?.name || 'Belum dimasukkan'],
+      ['Semester', selectedSemester === '2025/2026-1' ? 'Ganjil' : 'Genap'],
+      ['Tahun Ajaran', selectedSemester.split('-')[0]],
+    ];
+    infoData.forEach(([label, value]) => {
+      doc.text(`${label}`, margin, y);
+      doc.text(`: ${value}`, margin + 55, y);
+      y += 5;
+    });
+    y += 5;
+
+    // Grades Table
+    if (studentGrades.length > 0) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('A. Sikap & Pengetahuan', margin, y);
+      y += 3;
+
+      const tableData = studentGrades.map((g, idx) => {
+        const predikat = g.score >= 85 ? 'Sangat Baik' : g.score >= 70 ? 'Baik' : g.score >= 55 ? 'Cukup' : 'Kurang';
+        return [String(idx + 1), g.subject, String(g.score), String(g.score), String(g.score), predikat];
+      });
+
+      const avg = (studentGrades.reduce((s, g) => s + g.score, 0) / studentGrades.length).toFixed(2);
+      tableData.push(['', 'Rata-rata Nilai Akhir', '', '', avg, '']);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['No', 'Mata Pelajaran', 'Formatif', 'Sumatif', 'Nilai Akhir', 'Predikat']],
+        body: tableData,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+        theme: 'grid',
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Attendance
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('B. Ketidakhadiran', margin, y);
+    y += 3;
+
+    autoTable(doc, {
+      startY: y,
+      body: [
+        ['Hadir', '114 Hari (95%)'],
+        ['Sakit', '3 Hari'],
+        ['Izin', '3 Hari'],
+        ['Tanpa Keterangan', '0 Hari'],
+      ],
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8, cellPadding: 2 },
+      theme: 'grid',
+      columnStyles: { 0: { cellWidth: 60 } },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    y = (doc as any).lastAutoTable.finalY + 15;
+
+    // Signatures
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Mengetahui,', margin + 10, y);
+    doc.text('Orang Tua/Wali', margin + 10, y + 4);
+
+    doc.text(`Kota Pelajar, 15 Juni 2026`, pageWidth - margin - 50, y);
+    doc.text('Wali Kelas', pageWidth - margin - 50, y + 4);
+
+    y += 25;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Drs. Sugiyono, M.Pd', pageWidth - margin - 50, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text('NIP. 19780512 200501 2 003', pageWidth - margin - 50, y + 4);
+
+    const fileName = `Rapor_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedSemester}.pdf`;
+    doc.save(fileName);
+    toast.success(`PDF Rapor ${selectedStudent.name} berhasil diunduh!`);
   };
 
   // Module cards grid (default view)
@@ -221,8 +364,8 @@ export default function LaporanPage() {
                   <label className="text-[12px] leading-[16px] font-semibold text-on-surface-variant">Pilih Siswa</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">person_search</span>
-                    <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-surface-border bg-surface focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-[14px] leading-[20px] text-on-surface transition-all appearance-none cursor-pointer">
+                    <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)} disabled={!canEdit}
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-lg border border-surface-border bg-surface focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-[14px] leading-[20px] text-on-surface transition-all appearance-none cursor-pointer ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}>
                       {loading ? (
                         <option>Memuat siswa...</option>
                       ) : students.length === 0 ? (

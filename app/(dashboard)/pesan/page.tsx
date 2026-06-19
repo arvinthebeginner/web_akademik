@@ -125,9 +125,11 @@ export default function MessagePage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="mb-gutter">
-        <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background mb-1">Pesan</h1>
-        <p className="text-[12px] leading-[18px] text-on-surface-variant">Send and receive messages with teachers, students, and staff.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-stack-lg gap-4">
+        <div>
+          <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-background">Pesan</h1>
+          <p className="text-[14px] leading-[20px] text-on-surface-variant mt-1">Kirim dan terima pesan dengan guru, siswa, dan staf.</p>
+        </div>
       </div>
 
       {/* Messaging Container */}
@@ -136,13 +138,16 @@ export default function MessagePage() {
         <div className="w-full md:w-80 border-r border-surface-border flex flex-col h-full bg-surface-container-lowest">
           {/* Search Header */}
           <div className="p-4 border-b border-surface-border bg-surface-background">
-            <h2 className="text-[14px] leading-[20px] font-semibold text-on-background mb-3">Kontak Pesan</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[14px] leading-[20px] font-semibold text-on-background">Kontak Pesan</h2>
+              <span className="text-[11px] font-bold text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-full">{filteredThreads.length} kontak</span>
+            </div>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
               <input
                 type="text"
                 placeholder="Cari kontak..."
-                className="w-full bg-surface-container-lowest border border-surface-border rounded py-1.5 pl-9 pr-3 text-[12px] leading-[18px] focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
+                className="w-full bg-surface-container-lowest border border-surface-border rounded-lg py-2 pl-9 pr-3 text-[12px] leading-[18px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -156,7 +161,10 @@ export default function MessagePage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-[3px] border-surface-border border-t-secondary"></div>
               </div>
             ) : filteredThreads.length === 0 ? (
-              <div className="text-center py-12 text-[12px] text-on-surface-variant">Tidak ada kontak ditemukan</div>
+              <div className="text-center py-12 text-[12px] text-on-surface-variant">
+                <span className="material-symbols-outlined text-[32px] block mb-2">person_search</span>
+                Tidak ada kontak ditemukan
+              </div>
             ) : (
               filteredThreads.map((thread) => (
                 <div
@@ -164,12 +172,12 @@ export default function MessagePage() {
                   onClick={() => setSelectedThread(thread.id)}
                   className={`p-4 cursor-pointer transition-all flex items-center justify-between border-l-4 ${
                     selectedThread === thread.id
-                      ? 'bg-surface-container-low border-l-primary'
-                      : 'border-l-transparent hover:bg-surface-background'
+                      ? 'bg-primary-container/30 border-l-primary'
+                      : 'border-l-transparent hover:bg-surface-container-low'
                   }`}
                 >
                   <div className="flex items-center gap-3 w-4/5">
-                    <div className="w-10 h-10 rounded-full bg-primary text-on-primary font-bold flex items-center justify-center text-[11px] shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container font-bold flex items-center justify-center text-[11px] shrink-0">
                       {thread.avatar}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -196,16 +204,21 @@ export default function MessagePage() {
           {currentThread ? (
             <>
               {/* Chat Header */}
-              <div className="bg-surface-container-lowest border-b border-surface-border p-4 flex items-center gap-3 z-10">
-                <div className="w-10 h-10 rounded-full bg-primary text-on-primary font-bold flex items-center justify-center text-[11px] shrink-0">
-                  {currentThread.avatar}
+              <div className="bg-surface-container-lowest border-b border-surface-border p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container font-bold flex items-center justify-center text-[11px] shrink-0">
+                    {currentThread.avatar}
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] leading-[20px] font-semibold text-on-background">{currentThread.name}</h3>
+                    <span className="text-[11px] text-success flex items-center gap-1 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span> Online
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-on-background">{currentThread.name}</h3>
-                  <span className="text-[11px] text-success flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span> Online
-                  </span>
-                </div>
+                <button className="p-2 text-on-surface-variant hover:text-primary rounded-lg hover:bg-surface-container-low transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                </button>
               </div>
 
               {/* Messages Content */}
@@ -217,7 +230,7 @@ export default function MessagePage() {
                 ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mb-4">
-                      <span className="material-symbols-outlined text-on-surface-variant text-[32px]">chat</span>
+                      <span className="material-symbols-outlined text-on-surface-variant text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>chat_bubble</span>
                     </div>
                     <p className="text-[14px] text-on-surface-variant font-medium">Mulai percakapan dengan {currentThread.name}</p>
                     <p className="text-[12px] text-on-surface-variant mt-1">Kirim pesan pertama Anda di bawah.</p>
@@ -266,10 +279,10 @@ export default function MessagePage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-20 h-20 rounded-full bg-surface-container-low flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-on-surface-variant text-[40px]">forum</span>
+                <span className="material-symbols-outlined text-on-surface-variant text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>forum</span>
               </div>
-              <h3 className="text-[14px] font-semibold text-on-background mb-1">Mulai Obrolan</h3>
-              <p className="text-[12px] text-on-surface-variant">Pilih salah satu kontak di panel kiri untuk memulai obrolan.</p>
+              <h3 className="text-[16px] font-semibold text-on-background mb-1">Mulai Obrolan</h3>
+              <p className="text-[12px] text-on-surface-variant max-w-[260px]">Pilih salah satu kontak di panel kiri untuk memulai obrolan.</p>
             </div>
           )}
         </div>

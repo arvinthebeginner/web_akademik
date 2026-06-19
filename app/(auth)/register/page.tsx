@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Button, Input } from '@/components';
+import { Alert, Button } from '@/components';
 import Image from 'next/image';
 import { apiPost } from '@/lib/api';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -54,23 +55,27 @@ export default function RegisterPage() {
     }
   };
 
+  const inputBase = "block w-full pl-10 pr-3 py-2 border border-surface-border rounded-lg bg-surface-container-lowest text-[14px] leading-[20px] text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow";
+  const labelBase = "block text-[12px] font-semibold leading-[16px] text-on-surface";
+
   return (
     <div className="flex w-full min-h-screen bg-surface-background">
       {/* Left Panel - Branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-surface-container-high overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-secondary/80 z-10 mix-blend-multiply"></div>
         <Image
-          src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&q=80"
+          src="https://plus.unsplash.com/premium_photo-1680157071110-d7f5b00708f6?q=80&w=682&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Academic Campus"
           fill
           className="absolute inset-0 w-full h-full object-cover z-0"
           unoptimized
           priority
+          sizes="(min-width: 1024px) 50vw, 0px"
         />
         <div className="relative z-20 p-12 text-center text-on-primary">
-          <span className="material-symbols-outlined icon-fill text-6xl mb-6">how_to_reg</span>
+          <span className="material-symbols-outlined icon-fill text-6xl mb-6">school</span>
           <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-on-primary mb-4">
-            Bergabung Bersama Kami
+            Bergabung Bersama School.id
           </h1>
           <p className="text-[16px] leading-[24px] text-primary-fixed-dim max-w-md mx-auto">
             Daftarkan diri Anda dan mulai akses sistem akademik terpadu untuk pengalaman belajar yang lebih baik.
@@ -87,10 +92,10 @@ export default function RegisterPage() {
               <span className="material-symbols-outlined icon-fill text-primary text-2xl">account_balance</span>
             </div>
             <h2 className="text-[24px] font-semibold leading-[32px] tracking-[-0.01em] text-primary mb-2">
-              Daftar Akun Baru
+              School.id
             </h2>
             <p className="text-[14px] leading-[20px] text-on-surface-variant">
-              Sistem Manajemen Akademik
+              Daftar Akun Baru — Sistem Manajemen Akademik
             </p>
           </div>
 
@@ -99,61 +104,70 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <Input
-              label="Nama Lengkap"
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Masukkan nama lengkap"
-              required
-            />
-
-            <Input
-              label="Email"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="nama@institusi.ac.id"
-              required
-            />
-
-            <div className="w-full">
-              <label className="block text-[12px] font-semibold leading-[16px] text-on-surface mb-2">
-                Role
-              </label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-surface-border rounded-lg bg-surface-container-lowest text-[14px] leading-[20px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-              >
-                <option value="SISWA">Siswa</option>
-                <option value="GURU">Guru</option>
-                <option value="ORANG_TUA">Orang Tua</option>
-              </select>
+            {/* Nama */}
+            <div className="space-y-2">
+              <label className={labelBase}>Nama Lengkap</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-outline text-[20px]">person</span>
+                </div>
+                <input type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="Masukkan nama lengkap" className={inputBase} />
+              </div>
             </div>
 
-            <Input
-              label="Password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Minimal 6 karakter"
-              required
-            />
+            {/* Email */}
+            <div className="space-y-2">
+              <label className={labelBase}>Alamat Email</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-outline text-[20px]">mail</span>
+                </div>
+                <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="nama@institusi.ac.id" className={inputBase} />
+              </div>
+            </div>
 
-            <Input
-              label="Konfirmasi Password"
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Konfirmasi password"
-              required
-            />
+            {/* Role */}
+            <div className="space-y-2">
+              <label className={labelBase}>Role</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-outline text-[20px]">badge</span>
+                </div>
+                <select name="role" value={formData.role} onChange={handleChange} className="block w-full pl-10 pr-8 py-2 border border-surface-border rounded-lg bg-surface-container-lowest text-[14px] leading-[20px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow appearance-none">
+                  <option value="SISWA">Siswa</option>
+                  <option value="GURU">Guru</option>
+                  <option value="ORANG_TUA">Orang Tua</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-outline text-[18px]">expand_more</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-2">
+              <label className={labelBase}>Kata Sandi</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-outline text-[20px]">lock</span>
+                </div>
+                <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} required placeholder="Minimal 6 karakter" className={`${inputBase} pr-10`} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-outline hover:text-on-surface focus:outline-none">
+                  <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Konfirmasi Password */}
+            <div className="space-y-2">
+              <label className={labelBase}>Konfirmasi Kata Sandi</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-outline text-[20px]">lock_reset</span>
+                </div>
+                <input type={showPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required placeholder="Konfirmasi password" className={inputBase} />
+              </div>
+            </div>
 
             <Button
               type="submit"
@@ -161,7 +175,7 @@ export default function RegisterPage() {
               loading={loading}
               disabled={loading}
             >
-              Daftar
+              Daftar Sekarang
             </Button>
           </form>
 

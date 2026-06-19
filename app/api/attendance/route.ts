@@ -47,6 +47,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(successResponse(combined, 'Attendance sheet loaded'));
     }
 
+    // If querying student attendance history (for riwayat absensi)
+    const studentId = searchParams.get('studentId');
+    const monthStr = searchParams.get('month');
+    const yearStr = searchParams.get('year');
+
+    if (studentId) {
+      const now = new Date();
+      const month = monthStr ? parseInt(monthStr) : now.getMonth();
+      const year = yearStr ? parseInt(yearStr) : now.getFullYear();
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+      const records = await prisma.attendance.findMany({
+        where: {
+          studentId,
+          date: { gte: startDate, lte: endDate },
+        },
+        orderBy: { date: 'asc' },
+      });
+
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { name: true },
+      });
+
+      const formatted = records.map((r) => ({
+        id: r.id,
+        date: r.date.toISOString().split('T')[0],
+        day: r.date.getDate(),
+        status: r.status,
+        notes: r.notes || '',
+        studentName: student?.name || '',
+      }));
+
+      return NextResponse.json(successResponse(formatted, 'Student attendance history retrieved'));
+    }
+
     // Default: list all attendance records (general log)
     const attendanceLogs = await prisma.attendance.findMany({
       include: {

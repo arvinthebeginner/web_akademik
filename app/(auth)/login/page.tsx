@@ -47,7 +47,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 relative bg-surface-container-high overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-secondary/80 z-10 mix-blend-multiply"></div>
         <Image
-          src="https://images.unsplash.com/photo-1498243691581-b145c3f5b06a?w=1200&q=80"
+          src="https://plus.unsplash.com/premium_photo-1680157071110-d7f5b00708f6?q=80&w=682&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Academic Campus"
           fill
           className="absolute inset-0 w-full h-full object-cover z-0"
